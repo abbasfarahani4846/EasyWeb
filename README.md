@@ -1,6 +1,52 @@
-# EasyWeb Chrome Extension
+# EasyWeb — Layout, Fonts & AI 🌐
 
-> **EasyWeb** is a Chrome extension that personalizes website direction (RTL/LTR) and typography (Persian fonts & custom font uploads) with full per-segment targeting and an integrated AI assistant.
+[English](#english) | [فارسی](#persian)
+
+---
+
+<a id="english"></a>
+## English
+
+**EasyWeb** is a powerful Chrome extension that personalizes website direction (RTL/LTR) and typography (Persian fonts & custom font uploads) with full per-segment targeting and an integrated AI assistant.
+
+### ✨ Features
+*   **Typography Control:** Customize fonts with built-in Persian fonts or upload your own custom fonts.
+*   **Layout & Direction:** Instantly switch page direction (RTL/LTR) – perfect for reading content in different languages.
+*   **Per-Segment Targeting:** Apply changes to the entire page or select specific sections using an interactive element picker.
+*   **AI Chat Integration:** Chat directly with the content of the current webpage using your preferred AI provider right from the extension's side panel.
+*   **Smart Detection:** Automatically detects Persian language content and suggests appropriate typography settings.
+
+### 📦 Installation
+1. Download or clone this repository.
+2. Build the extension (see [Development](#-development--build)).
+3. Open Google Chrome and go to `chrome://extensions/`.
+4. Enable **Developer mode** (top right corner).
+5. Click **Load unpacked** and select the `dist/` folder.
+
+---
+
+<a id="persian"></a>
+<div dir="rtl">
+
+## فارسی
+
+**EasyWeb (ایزی‌وب)** یک افزونه‌ی کاربردی برای مرورگر کروم است که به شما امکان می‌دهد جهت متن (راست‌چین/چپ‌چین) و تایپوگرافی (فونت‌های فارسی یا فونت‌های دلخواه) سایت‌ها را شخصی‌سازی کنید. همچنین دارای یک دستیار هوش مصنوعی یکپارچه در پنل کناری است.
+
+### ✨ ویژگی‌ها
+*   **کنترل تایپوگرافی:** استفاده از فونت‌های پیش‌فرض فارسی یا آپلود فونت‌های دلخواه (custom fonts).
+*   **چیدمان و جهت متن:** تغییر سریع جهت صفحه (RTL/LTR) – ایده‌آل برای مطالعه محتوای فارسی و عربی.
+*   **اعمال روی بخش‌های خاص:** می‌توانید تغییرات را روی کل صفحه اعمال کنید یا با استفاده از ابزار انتخابگر (Picker)، فقط بخش‌های خاصی از صفحه را تغییر دهید.
+*   **چت با هوش مصنوعی:** از طریق پنل کناری (Side Panel) مستقیماً با محتوای صفحه‌ی فعلی گفتگو کنید.
+*   **تشخیص هوشمند:** تشخیص خودکار زبان فارسی در صفحات وب و پیشنهاد تنظیمات تایپوگرافی مناسب.
+
+### 📦 راهنمای نصب
+۱. این مخزن (Repository) را دانلود یا کلون کنید.
+۲. افزونه را بیلد کنید (به بخش [Development](#-development--build) مراجعه کنید).
+۳. مرورگر کروم را باز کرده و به آدرس `chrome://extensions/` بروید.
+۴. حالت توسعه‌دهنده (**Developer mode**) را از گوشه بالا سمت راست فعال کنید.
+۵. روی **Load unpacked** کلیک کنید و پوشه‌ی `dist/` را انتخاب نمایید.
+
+</div>
 
 ---
 
@@ -51,8 +97,6 @@ EasyWeb/
 └── dist/                      # Production Output (Load unpacked extension from here)
 ```
 
----
-
 ## 🚀 Development & Build
 
 ### 1. Build Extension
@@ -67,9 +111,3 @@ To automatically recompile whenever any file in `src/` is edited:
 ```bash
 npm run watch
 ```
-
-### 3. Load into Google Chrome
-1. Open `chrome://extensions/`
-2. Enable **Developer mode** (top right switch).
-3. Click **Load unpacked**.
-4. Select the `dist/` folder inside this repository: `d:\Projects\EasyWeb\dist`.
