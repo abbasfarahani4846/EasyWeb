@@ -1,0 +1,1 @@
+EasyWeb icon source is icon.svg. The packaged Chrome manifest uses icon16.png, icon48.png, and icon128.png because Chrome manifest icons require raster formats. The PNGs are generated from the same vector concept during the local build.

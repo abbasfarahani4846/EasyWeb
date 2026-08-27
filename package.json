@@ -1,0 +1,13 @@
+{
+  "name": "easyweb",
+  "version": "1.0.0",
+  "description": "EasyWeb Chrome Extension - Direction and Typography Customizer with Persian Support",
+  "type": "module",
+  "scripts": {
+    "build": "node build.js",
+    "watch": "node build.js --watch"
+  },
+  "keywords": ["chrome-extension", "rtl", "typography", "persian-fonts"],
+  "author": "Abbas Farahani",
+  "license": "MIT"
+}

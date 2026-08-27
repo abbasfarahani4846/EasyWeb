@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="fa" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>EasyWeb</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body class="popup-shell">
+    <header class="topbar">
+      <div class="brand">
+        <img src="assets/icon.svg" alt="EasyWeb">
+        <div>
+          <strong>EasyWeb</strong>
+          <span id="domain" title="Current domain">Loading...</span>
+        </div>
+      </div>
+      <button class="icon-button" id="open-sidebar" title="AI assistant">↗</button>
+    </header>
+
+    <div id="persian-hint" class="hint hidden">
+      <span id="persian-hint-text">Persian text detected</span>
+      <div class="hint-actions">
+        <button id="persian-apply" class="hint-btn">Apply Vazirmatn</button>
+        <button id="persian-dismiss" class="icon-sm" title="Dismiss">✕</button>
+      </div>
+    </div>
+
+    <!-- LAYOUT (Direction) Card -->
+    <section class="card" id="layout-card">
+      <div class="card-row">
+        <span class="eyebrow">LAYOUT</span>
+        <label class="switch"><input id="direction-enabled" type="checkbox"><span></span></label>
+      </div>
+      <div class="scope-tabs">
+        <button type="button" class="scope-tab active" data-feature="direction" data-scope="page">کل صفحه</button>
+        <button type="button" class="scope-tab" data-feature="direction" data-scope="element">بخش‌های انتخابی</button>
+      </div>
+      <div class="card-row">
+        <select id="direction-value" aria-label="Direction">
+          <option value="rtl">RTL · فارسی</option>
+          <option value="ltr">LTR</option>
+        </select>
+        <button class="icon-btn" data-advanced="direction" title="Advanced settings">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/>
+            <circle cx="8" cy="6" r="2" fill="currentColor"/><circle cx="16" cy="12" r="2" fill="currentColor"/><circle cx="10" cy="18" r="2" fill="currentColor"/>
+          </svg>
+        </button>
+      </div>
+      <div class="advanced" id="direction-advanced">
+        <div class="picker-row">
+          <span id="direction-target" style="cursor:pointer" title="Click to switch to Page scope">Page</span>
+          <button id="pick-direction" class="btn-sm">＋ Add section</button>
+        </div>
+        <div id="direction-targets" class="targets-list"></div>
+        <button id="reset-direction" class="link-btn muted">↶ Restore</button>
+      </div>
+    </section>
+
+    <!-- TYPE (Typography) Card -->
+    <section class="card" id="type-card">
+      <div class="card-row">
+        <span class="eyebrow">TYPE <span id="persian-badge" class="badge hidden"></span></span>
+        <label class="switch"><input id="font-enabled" type="checkbox"><span></span></label>
+      </div>
+      <div class="scope-tabs">
+        <button type="button" class="scope-tab active" data-feature="font" data-scope="page">کل صفحه</button>
+        <button type="button" class="scope-tab" data-feature="font" data-scope="element">بخش‌های انتخابی</button>
+      </div>
+      <div class="card-row">
+        <select id="font-family" aria-label="Font"></select>
+        <button class="icon-btn" data-advanced="font" title="Advanced settings">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/>
+            <circle cx="8" cy="6" r="2" fill="currentColor"/><circle cx="16" cy="12" r="2" fill="currentColor"/><circle cx="10" cy="18" r="2" fill="currentColor"/>
+          </svg>
+        </button>
+      </div>
+      <div class="advanced" id="font-advanced">
+        <div class="picker-row">
+          <span id="font-target" style="cursor:pointer" title="Click to switch to Page scope">Page</span>
+          <button id="pick-font" class="btn-sm">＋ Add section</button>
+        </div>
+        <div id="font-targets" class="targets-list"></div>
+        <div class="field-grid">
+          <label>Size <span><input id="font-size" type="number" min="8" max="96"><select id="font-unit"><option>px</option><option>em</option><option>rem</option></select></span></label>
+          <label>Height <input id="line-height" type="text" placeholder="1.6"></label>
+          <label>Weight <input id="font-weight" type="number" min="100" max="900" step="50" placeholder="400"></label>
+          <label>Align <select id="text-align"><option value="start">Natural</option><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option><option value="justify">Justify</option></select></label>
+        </div>
+        <label class="upload-btn">＋ Font file <input id="font-upload" type="file" accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2"></label>
+        <div id="custom-fonts-list" class="custom-fonts-list"></div>
+        <button id="reset-font" class="link-btn muted">↶ Restore</button>
+      </div>
+    </section>
+
+    <!-- TRANSLATE Card -->
+    <section class="card" id="translate-card">
+      <div class="card-row">
+        <span class="eyebrow">TRANSLATE</span>
+        <label class="switch"><input id="translate-enabled" type="checkbox"><span></span></label>
+      </div>
+      <div class="scope-tabs">
+        <button type="button" class="scope-tab active" data-feature="translate" data-scope="page">کل صفحه</button>
+        <button type="button" class="scope-tab" data-feature="translate" data-scope="element">بخش‌های انتخابی</button>
+      </div>
+      <div class="card-row">
+        <select id="translate-target-lang" aria-label="Target language"></select>
+        <button class="icon-btn" data-advanced="translate" title="Advanced settings">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/>
+            <circle cx="8" cy="6" r="2" fill="currentColor"/><circle cx="16" cy="12" r="2" fill="currentColor"/><circle cx="10" cy="18" r="2" fill="currentColor"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Action button to execute translation manually without auto-preview -->
+      <div style="margin-top: 5px;">
+        <button type="button" id="translate-action-btn" class="translate-btn-main">⚡ ترجمه محتوا</button>
+      </div>
+
+      <div class="advanced" id="translate-advanced">
+        <div class="card-row" style="margin-bottom: 5px; gap: 4px;">
+          <select id="translate-engine" aria-label="Translation Engine">
+            <option value="google">Google Translate</option>
+            <option value="ai">AI Assistant (هوش مصنوعی)</option>
+          </select>
+          <select id="translate-tone" aria-label="Translation Tone"></select>
+        </div>
+
+        <div id="translate-prompt-container" style="margin-bottom: 5px;">
+          <textarea id="translate-prompt" rows="2" placeholder="پرامپت سیستمی / دستور ویژه برای هوش مصنوعی..."></textarea>
+        </div>
+
+        <div class="picker-row">
+          <span id="translate-target" style="cursor:pointer" title="Click to switch to Page scope">Page</span>
+          <button id="pick-translate" class="btn-sm">＋ Add section</button>
+        </div>
+        <div id="translate-targets" class="targets-list"></div>
+        <button id="reset-translate" class="link-btn muted">↶ بازگردانی به متن اصلی</button>
+      </div>
+    </section>
+
+    <p class="status" id="status" role="status"></p>
+    <footer><span>Auto-saved per site</span></footer>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

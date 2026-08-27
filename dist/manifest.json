@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "EasyWeb — Layout, Fonts & AI",
+  "version": "1.0.7",
+  "description": "Personalize page direction and typography, then chat with page content using your preferred AI provider.",
+  "permissions": ["storage", "unlimitedStorage", "activeTab", "tabs", "sidePanel", "scripting"],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_title": "EasyWeb settings",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "assets/icon16.png",
+      "48": "assets/icon48.png",
+      "128": "assets/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "side_panel": {
+    "default_path": "sidebar.html"
+  },
+  "options_page": "sidebar.html",
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/*"],
+      "matches": ["<all_urls>"]
+    },
+    {
+      "resources": ["assets/fonts/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

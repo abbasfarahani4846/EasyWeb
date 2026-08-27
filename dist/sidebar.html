@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EasyWeb AI</title>
+  <link rel="stylesheet" href="sidebar.css">
+</head>
+<body>
+  <main class="sidebar">
+    <!-- Header -->
+    <header class="sidebar-head">
+      <div class="brand">
+        <img src="assets/icon.svg" alt="EasyWeb">
+        <div>
+          <strong>EasyWeb AI</strong>
+          <span id="page-name">دستیار صفحه هوشمند</span>
+        </div>
+      </div>
+      <button id="open-settings" class="gear-btn" title="تنظیمات هوش مصنوعی (Settings)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+    </header>
+
+    <!-- Page Context -->
+    <section class="page-context">
+      <div>
+        <span class="eyebrow">کانتکست صفحه</span>
+        <p id="context-status">آماده دریافت متن صفحه</p>
+      </div>
+      <div style="display: flex; gap: 4px;">
+        <button id="refresh-context" class="mini-button">بروزرسانی</button>
+        <button id="clear-chat-btn" class="mini-button" title="پاک‌سازی تاریخچه چت این سایت">پاک‌سازی</button>
+      </div>
+    </section>
+
+    <!-- Quick Actions -->
+    <section class="quick-actions">
+      <button data-action="summarize">✦ <span>خلاصه‌سازی</span></button>
+      <button data-action="translate">文 <span>ترجمه به فارسی</span></button>
+      <button data-action="extract">⌁ <span>استخراج نکات</span></button>
+    </section>
+
+    <!-- Active Provider Status Line -->
+    <div class="provider-line">
+      <span id="active-provider">حالت تست · ارائه‌دهنده را انتخاب کنید</span>
+      <button id="open-settings-inline">مدیریت</button>
+    </div>
+
+    <!-- Chat Messages Container -->
+    <section id="chat" class="chat" aria-live="polite">
+      <div class="welcome">
+        <span class="welcome-icon">✦</span>
+        <strong>درباره این صفحه هر سوالی دارید بپرسید</strong>
+        <p>خلاصه‌سازی، ترجمه متون، یا اجرای پرسش‌های هوشمند از محتوای صفحه.</p>
+      </div>
+    </section>
+
+    <!-- Composer Input -->
+    <form id="composer" class="composer">
+      <textarea id="prompt" rows="2" placeholder="درباره محتوای صفحه بپرسید..."></textarea>
+      <button class="send" title="ارسال" aria-label="ارسال">↑</button>
+    </form>
+    <p id="sidebar-status" class="status"></p>
+
+    <!-- FULLSCREEN SETTINGS MODAL -->
+    <div id="settings-modal" class="settings-modal hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title">
+            <span class="gear-icon">⚙</span>
+            <strong>تنظیمات پیشرفته هوش مصنوعی</strong>
+          </div>
+          <span id="modal-status" class="modal-status"></span>
+          <button id="close-settings" class="close-btn" title="بستن">✕</button>
+        </div>
+
+        <!-- Modal Tabs -->
+        <nav class="modal-tabs">
+          <button type="button" class="tab-btn active" data-tab="providers">مدل‌ها و سرویس‌دهنده‌ها</button>
+          <button type="button" class="tab-btn" data-tab="translation">ترجمه با هوش مصنوعی</button>
+          <button type="button" class="tab-btn" data-tab="tools">ابزارهای پرامپت</button>
+          <button type="button" class="tab-btn" data-tab="backup">پشتیبان‌گیری و بازیابی</button>
+        </nav>
+
+        <div class="modal-body">
+          <!-- TAB 1: PROVIDERS & MODELS -->
+          <div id="tab-providers" class="tab-content active">
+            <div class="section-box">
+              <h3>افزودن اتصال جدید (New Connection)</h3>
+              <p class="hint">کلیدهای API فقط در حافظه محلی مرورگر شما نگهداری می‌شوند.</p>
+              
+              <div class="form-grid">
+                <label>
+                  <span>سرویس‌دهنده (Provider)</span>
+                  <select id="provider-type">
+                    <option value="gemini" selected>Google Gemini (دارای مدل‌های رایگان Flash)</option>
+                    <option value="openrouter">OpenRouter (مدل‌های متن‌باز و رایگان DeepSeek / Llama)</option>
+                    <option value="groq">Groq Cloud (فوق‌العاده سریع با پلن رایگان)</option>
+                    <option value="nvidia">NVIDIA NIM (پلن توسعه‌دهنده رایگان)</option>
+                    <option value="openai">OpenAI (GPT-4o, GPT-4o-mini)</option>
+                    <option value="anthropic">Anthropic Claude (Claude 3.5 Sonnet)</option>
+                    <option value="custom">سفارشی / Ollama / Local</option>
+                  </select>
+                </label>
+
+                <label id="base-url-container" class="hidden">
+                  <span>آدرس Endpoint / Base URL</span>
+                  <input id="provider-base-url" type="text" placeholder="http://localhost:11434/v1">
+                </label>
+
+                <label>
+                  <span>نام دلخواه (Label)</span>
+                  <input id="provider-label" type="text" placeholder="Gemini Assistant">
+                </label>
+
+                <label>
+                  <span>کلید API (API Key)</span>
+                  <input id="provider-secret" type="password" placeholder="AIzaSy... یا gsk_...">
+                </label>
+              </div>
+
+              <div class="btn-row">
+                <button id="test-save-provider" class="btn-primary">⚡ تست اتصال و دریافت مدل‌ها</button>
+              </div>
+            </div>
+
+            <!-- Saved Providers & Models List -->
+            <div class="section-box">
+              <h3>سرویس‌های متصل و انتخاب مدل</h3>
+              <div id="saved-providers-list" class="providers-list"></div>
+            </div>
+          </div>
+
+          <!-- TAB 2: AI TRANSLATION CONFIG -->
+          <div id="tab-translation" class="tab-content">
+            <div class="section-box">
+              <h3>تنظیمات موتور ترجمه با هوش مصنوعی</h3>
+              <p class="hint">هنگام انتخاب گزینه AI در بخش ترجمه، این تنظیمات و لحن پیش‌فرض برای ترجمه به کار می‌روند.</p>
+
+              <div class="form-grid">
+                <label>
+                  <span>سرویس‌دهنده پیش‌فرض ترجمه</span>
+                  <select id="ai-trans-provider"></select>
+                </label>
+                <label>
+                  <span>مدل ترجمه</span>
+                  <select id="ai-trans-model"></select>
+                </label>
+                <label>
+                  <span>لحن و سبک پیش‌فرض ترجمه</span>
+                  <select id="ai-trans-tone">
+                    <option value="standard">روان و طبیعی (پیش‌فرض)</option>
+                    <option value="formal">رسمی و تخصصی</option>
+                    <option value="colloquial">صمیمی و محاوره‌ای</option>
+                    <option value="literal">کلمه‌به‌کلمه و دقیق</option>
+                    <option value="simplified">ساده‌سازی شده</option>
+                    <option value="custom">پرامپت سفارشی...</option>
+                  </select>
+                </label>
+                <label style="grid-column: 1 / -1;">
+                  <span>پرامپت سیستمی اختصاصی (اختیاری)</span>
+                  <textarea id="ai-trans-prompt" rows="2" placeholder="دستورالعمل ویژه به هوش مصنوعی برای ترجمه متون وب‌سایت..."></textarea>
+                </label>
+              </div>
+              <div class="btn-row">
+                <button id="save-trans-config" class="btn-primary">ذخیره تنظیمات ترجمه</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 3: CUSTOM TOOLS -->
+          <div id="tab-tools" class="tab-content">
+            <div class="section-box">
+              <h3>ابزارها و میانبرهای پرامپت</h3>
+              <div class="btn-row" style="margin-bottom: 8px;">
+                <button id="add-tool-btn" class="btn-secondary">＋ ابزار پرامپت جدید</button>
+              </div>
+              <div id="custom-tools-list" class="tools-list"></div>
+            </div>
+          </div>
+
+          <!-- TAB 4: BACKUP & RESTORE -->
+          <div id="tab-backup" class="tab-content">
+            <div class="section-box">
+              <h3>پشتیبان‌گیری و خروجی داده‌ها (Export JSON)</h3>
+              <p class="hint">تمام تنظیمات دامنه‌ها، فونت‌های سفارشی آپلود شده، اتصالات هوش مصنوعی و ابزارها را در یک فایل JSON دانلود و ذخیره کنید.</p>
+              <div class="btn-row">
+                <button id="export-backup-btn" class="btn-primary">📥 دانلود فایل پشتیبان (Export Backup)</button>
+              </div>
+            </div>
+
+            <div class="section-box">
+              <h3>بازیابی اطلاعات (Import Backup)</h3>
+              <p class="hint">با بارگذاری فایل پشتیبان قبلی، تمامی تنظیمات و فونت‌ها بدون نقص بازگردانی می‌شوند.</p>
+              <div class="btn-row">
+                <label class="btn-secondary" style="cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">
+                  📤 انتخاب و بازیابی فایل JSON
+                  <input id="import-backup-file" type="file" accept=".json,application/json" style="display:none">
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="sidebar.js"></script>
+</body>
+</html>
