@@ -34,15 +34,17 @@ export async function fetchGoogleTranslate(text, targetLang = 'fa') {
     translationCache.set(cacheKey, translated);
     return translated;
   } catch (error) {
-    console.error('[EasyWeb Translation Error]:', error);
+    console.warn('[EasyWeb Translation Error]:', error.message || error);
     return text;
   }
 }
 
 /**
- * Translate a batch using an active AI / LLM Provider
+ * Translate a batch using an active AI / LLM Provider with chunking and graceful fallback
  */
 export async function translateWithAI(texts = [], targetLang = 'fa', tone = 'standard', customPrompt = '') {
+  if (!Array.isArray(texts) || !texts.length) return [];
+
   const store = await chrome.storage.local.get({ providers: [], activeProviderId: '', translationAi: {} });
   const providers = store.providers || [];
   const activeId = store.translationAi?.providerId || store.activeProviderId;
@@ -70,10 +72,10 @@ export async function translateWithAI(texts = [], targetLang = 'fa', tone = 'sta
 
   const toneInstructions = {
     standard: 'Translate with a fluent, natural, and idiomatic tone.',
-    formal: 'Translate with a highly formal, scholarly, and professional tone suitable for official or academic texts.',
-    colloquial: 'Translate with a friendly, conversational, and accessible everyday tone.',
-    literal: 'Translate with high precision, strictly preserving the original sentence structure and literal meanings.',
-    simplified: 'Translate into clear, simplified, and easy-to-understand language.',
+    formal: 'Translate with a highly scholarly, professional tone suitable for official or academic texts.',
+    colloquial: 'Translate with a friendly, conversational everyday tone.',
+    literal: 'Translate with high precision, strictly preserving sentence structure.',
+    simplified: 'Translate into clear, simplified language.',
     custom: customPrompt?.trim() || 'Translate accurately and naturally.'
   };
 
@@ -81,25 +83,59 @@ export async function translateWithAI(texts = [], targetLang = 'fa', tone = 'sta
     ? customPrompt.trim()
     : ((toneInstructions[tone] || toneInstructions.standard) + (customPrompt?.trim() ? ` Additional guidance: ${customPrompt.trim()}` : ''));
 
-  const combined = texts.join(SEPARATOR);
-  const systemPrompt = `You are a professional website translator. Translate the following text blocks into ${langName}.\nTranslation Style & Instructions: ${selectedTone}\nPreserve all line breaks, code tokens, technical tags, and punctuation. Maintain exact count of blocks separated by '====EW_SEP===='. Output ONLY the translated blocks separated by '====EW_SEP====' with NO commentary.`;
+  // ponytail: 10 items / 1500 chars chunk ceiling prevents gateway 524 timeouts on large pages
+  const CHUNK_SIZE = 10;
+  const MAX_CHARS = 1500;
+  const chunks = [];
+  let currentChunk = [];
+  let currentLen = 0;
 
-  const response = await callLLM({
-    providerType: provider.type,
-    apiKey: provider.secret,
-    baseUrl: provider.baseUrl,
-    model,
-    prompt: combined,
-    systemPrompt
-  });
+  for (const t of texts) {
+    const textLen = (t || '').length;
+    if (currentChunk.length >= CHUNK_SIZE || (currentLen + textLen > MAX_CHARS && currentChunk.length > 0)) {
+      chunks.push(currentChunk);
+      currentChunk = [];
+      currentLen = 0;
+    }
+    currentChunk.push(t);
+    currentLen += textLen;
+  }
+  if (currentChunk.length) chunks.push(currentChunk);
 
-  if (!response?.ok || !response?.text) {
-    console.error('[EasyWeb AI Translate Error]:', response?.error);
-    return null;
+  const results = [];
+
+  for (const chunk of chunks) {
+    const combined = chunk.join(SEPARATOR);
+    const systemPrompt = `You are a professional website translator. Translate the following text blocks into ${langName}.\nTranslation Style & Instructions: ${selectedTone}\nPreserve all line breaks, code tokens, technical tags, and punctuation. Maintain exact count of blocks separated by '====EW_SEP===='. Output ONLY the translated blocks separated by '====EW_SEP====' with NO commentary.`;
+
+    const response = await callLLM({
+      providerType: provider.type,
+      apiKey: provider.secret,
+      baseUrl: provider.baseUrl,
+      model,
+      prompt: combined,
+      systemPrompt
+    });
+
+    if (!response?.ok || !response?.text) {
+      console.warn('[EasyWeb AI Translate Error]:', response?.error || 'Unknown AI error, falling back chunk to Google Translate');
+      // Fallback chunk to Google Translate
+      const fallbackChunk = await Promise.all(chunk.map((item) => fetchGoogleTranslate(item, targetLang)));
+      results.push(...fallbackChunk);
+      continue;
+    }
+
+    const parts = response.text.split(/====EW_SEP====/i);
+    if (parts.length === chunk.length) {
+      results.push(...parts.map((p, idx) => (p !== undefined && p.trim() ? p.trim() : chunk[idx])));
+    } else {
+      console.warn('[EasyWeb AI Translate]: Separator count mismatch, falling back chunk to Google Translate');
+      const fallbackChunk = await Promise.all(chunk.map((item) => fetchGoogleTranslate(item, targetLang)));
+      results.push(...fallbackChunk);
+    }
   }
 
-  const parts = response.text.split(/====EW_SEP====/i);
-  return texts.map((original, i) => (parts[i] !== undefined ? parts[i].trim() : original));
+  return results;
 }
 
 /**

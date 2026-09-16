@@ -3,9 +3,14 @@
  * Tone / Prompt Customization and Manual On-Demand Execution
  */
 import { DEFAULT_SITE, SUPPORTED_LANGUAGES, TRANSLATION_TONES } from '../../shared/defaults.js';
-import { state, $, saveSite, activeTarget, setStatus, ensureContentScript } from '../state.js';
+import { syncSiteEnabled } from '../../shared/models.js';
+import { state, $, saveSite, scheduleSaveSite, applyLive, activeTarget, setStatus, ensureContentScript } from '../state.js';
 
 export function bindTranslateCard(renderCallback) {
+  $('translate-card')?.querySelector('.eyebrow')?.addEventListener('click', () => {
+    $('translate-card')?.classList.toggle('collapsed');
+  });
+
   $('translate-target').onclick = () => {
     state.activeTargetId = null;
     renderCallback();
@@ -15,23 +20,33 @@ export function bindTranslateCard(renderCallback) {
     const checked = $('translate-enabled').checked;
     const scope = state.site.translate?.scope || 'page';
 
-    if (scope === 'page') {
-      state.site.translate.enabled = checked;
-    } else {
-      if (checked) {
-        if (!state.site.targets.some((t) => t.translate?.enabled)) {
-          const target = activeTarget('translate') || state.site.targets[0];
-          if (target) {
-            target.translate = target.translate || { ...DEFAULT_SITE.translate, enabled: true };
-            target.translate.enabled = true;
-          }
+    if (checked) {
+      if (scope === 'element') {
+        const target = activeTarget('translate') || state.site.targets.find((t) => t.translate) || state.site.targets[0];
+        if (target) {
+          target.translate = target.translate || { ...DEFAULT_SITE.translate, enabled: true };
+          target.translate.enabled = true;
+        } else {
+          // No targets exist for element scope — switch to page scope and enable
+          if (!state.site.translate) state.site.translate = {};
+          state.site.translate.scope = 'page';
+          state.site.translate.enabled = true;
         }
       } else {
+        if (!state.site.translate) state.site.translate = {};
+        state.site.translate.scope = 'page';
+        state.site.translate.enabled = true;
+      }
+    } else {
+      if (state.site.translate) state.site.translate.enabled = false;
+      if (Array.isArray(state.site.targets)) {
         state.site.targets.forEach((t) => {
           if (t.translate) t.translate.enabled = false;
         });
       }
     }
+    syncSiteEnabled(state.site);
+    applyLive();
     if (!checked) {
       if (state.tabId) {
         await chrome.tabs.sendMessage(state.tabId, { type: 'RESTORE_TRANSLATION' }).catch(() => {});
@@ -43,7 +58,7 @@ export function bindTranslateCard(renderCallback) {
     await saveSite();
   };
 
-  $('translate-target-lang').onchange = async () => {
+  const onLangChange = () => {
     const scope = state.site.translate?.scope || 'page';
     const target = scope === 'element' ? activeTarget('translate') : null;
     const lang = $('translate-target-lang').value;
@@ -53,11 +68,15 @@ export function bindTranslateCard(renderCallback) {
       state.site.translate.enabled = true;
       state.site.translate.targetLang = lang;
     }
-    renderCallback();
-    await saveSite();
+    syncSiteEnabled(state.site);
+    applyLive();
+    scheduleSaveSite(100);
   };
 
-  $('translate-engine').onchange = async () => {
+  $('translate-target-lang').onchange = onLangChange;
+  $('translate-target-lang').oninput = onLangChange;
+
+  const onEngineChange = () => {
     const scope = state.site.translate?.scope || 'page';
     const target = scope === 'element' ? activeTarget('translate') : null;
     const engine = $('translate-engine').value;
@@ -66,12 +85,14 @@ export function bindTranslateCard(renderCallback) {
     } else {
       state.site.translate.engine = engine;
     }
-    renderCallback();
-    await saveSite();
+    scheduleSaveSite(100);
   };
 
+  $('translate-engine').onchange = onEngineChange;
+  $('translate-engine').oninput = onEngineChange;
+
   if ($('translate-tone')) {
-    $('translate-tone').onchange = async () => {
+    const onToneChange = () => {
       const scope = state.site.translate?.scope || 'page';
       const target = scope === 'element' ? activeTarget('translate') : null;
       const tone = $('translate-tone').value;
@@ -80,13 +101,14 @@ export function bindTranslateCard(renderCallback) {
       } else {
         state.site.translate.tone = tone;
       }
-      renderCallback();
-      await saveSite();
+      scheduleSaveSite(100);
     };
+    $('translate-tone').onchange = onToneChange;
+    $('translate-tone').oninput = onToneChange;
   }
 
   if ($('translate-prompt')) {
-    $('translate-prompt').oninput = async () => {
+    $('translate-prompt').oninput = () => {
       const scope = state.site.translate?.scope || 'page';
       const target = scope === 'element' ? activeTarget('translate') : null;
       const customPrompt = $('translate-prompt').value;
@@ -95,7 +117,7 @@ export function bindTranslateCard(renderCallback) {
       } else {
         state.site.translate.customPrompt = customPrompt;
       }
-      await saveSite();
+      scheduleSaveSite(200);
     };
   }
 
@@ -167,9 +189,14 @@ export function bindTranslateCard(renderCallback) {
 
 export function renderTranslateCard() {
   const transScope = state.site.translate?.scope || 'page';
-  $('translate-enabled').checked = transScope === 'page'
+  const hasTransTargets = Array.isArray(state.site.targets) && state.site.targets.some((t) => t.translate);
+  const transOn = transScope === 'page'
     ? Boolean(state.site.translate?.enabled)
     : state.site.targets.some((t) => t.translate?.enabled);
+  $('translate-enabled').checked = transOn;
+  // Switched off -> show only the title and the switch (keep open if user is configuring element scope)
+  const shouldCollapse = !transOn && (transScope !== 'element' || hasTransTargets);
+  $('translate-card')?.classList.toggle('collapsed', shouldCollapse);
 
   const transTarget = transScope === 'element' ? activeTarget('translate') : null;
   const transCfg = transTarget?.translate || state.site.translate || DEFAULT_SITE.translate;

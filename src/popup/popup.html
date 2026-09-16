@@ -28,7 +28,7 @@
 
     <!-- LAYOUT (Direction) Card -->
     <section class="card" id="layout-card">
-      <div class="card-row">
+      <div class="card-row card-head">
         <span class="eyebrow">LAYOUT</span>
         <label class="switch"><input id="direction-enabled" type="checkbox"><span></span></label>
       </div>
@@ -60,7 +60,7 @@
 
     <!-- TYPE (Typography) Card -->
     <section class="card" id="type-card">
-      <div class="card-row">
+      <div class="card-row card-head">
         <span class="eyebrow">TYPE <span id="persian-badge" class="badge hidden"></span></span>
         <label class="switch"><input id="font-enabled" type="checkbox"><span></span></label>
       </div>
@@ -97,7 +97,7 @@
 
     <!-- TRANSLATE Card -->
     <section class="card" id="translate-card">
-      <div class="card-row">
+      <div class="card-row card-head">
         <span class="eyebrow">TRANSLATE</span>
         <label class="switch"><input id="translate-enabled" type="checkbox"><span></span></label>
       </div>
@@ -142,8 +142,66 @@
       </div>
     </section>
 
+    <!-- AD BLOCKER Card -->
+    <section class="card" id="adblock-card">
+      <div class="card-row card-head">
+        <span class="eyebrow">AD BLOCKER <span id="adblock-badge" class="badge hidden"></span></span>
+        <label class="switch"><input id="adblock-enabled" type="checkbox"><span></span></label>
+      </div>
+
+      <div class="ab-status" id="adblock-status">در حال بارگذاری…</div>
+
+      <!-- Single per-site option: apply to this site or not -->
+      <div class="card-row ab-site-row" id="adblock-site-row">
+        <label class="ab-site-label" for="adblock-site-toggle">اعمال در این سایت</label>
+        <div style="display:flex;align-items:center;gap:6px">
+          <label class="switch"><input id="adblock-site-toggle" type="checkbox"><span></span></label>
+          <button class="icon-btn" data-advanced="adblock" title="Advanced settings">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/>
+              <circle cx="8" cy="6" r="2" fill="currentColor"/><circle cx="16" cy="12" r="2" fill="currentColor"/><circle cx="10" cy="18" r="2" fill="currentColor"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <select id="adblock-mode" style="display:none" aria-label="Blocking mode"></select>
+
+      <div class="ab-pick">
+        <div class="ab-pick-row">
+          <select id="adblock-pick-mode" aria-label="Picked section mode">
+            <option value="hide">مخفی شود</option>
+            <option value="remove">کامل حذف شود</option>
+          </select>
+          <button id="adblock-pick" class="ab-pick-btn" title="انتخاب بخش تبلیغاتی با موس">🎯 انتخاب بخش</button>
+        </div>
+      </div>
+
+      <div id="adblock-picked-list" class="ab-picked-list"></div>
+
+      <div class="advanced" id="adblock-advanced">
+        <p class="ab-pick-hint">با دکمه بالا روی بخش تبلیغاتی کلیک کنید؛ از این پس در همین سایت خودکار بلاک می‌شود.</p>
+
+        <div class="ab-toggles" id="adblock-toggles"></div>
+
+        <div class="ab-lists">
+          <button id="adblock-whitelist" class="btn-sm">＋ لیست سفید</button>
+          <button id="adblock-blacklist" class="btn-sm">＋ لیست سیاه</button>
+        </div>
+
+        <div class="ab-stats" id="adblock-stats"></div>
+
+        <div class="ab-footer">
+          <button id="adblock-open-settings" class="link-btn">تنظیمات پیشرفته ↗</button>
+          <button id="adblock-reset-stats" class="link-btn muted">↶ صفر کردن آمار</button>
+        </div>
+      </div>
+    </section>
+
     <p class="status" id="status" role="status"></p>
-    <footer><span>Auto-saved per site</span></footer>
+    <footer class="popup-footer">
+      <span>Auto-saved per site</span>
+      <button type="button" id="clear-all-data-popup" class="link-btn danger" title="حذف تمام اطلاعات ذخیره‌شده توسط مرورگر">🗑️ پاک‌سازی تمام داده‌ها</button>
+    </footer>
 
     <script type="module" src="popup.js"></script>
   </body>

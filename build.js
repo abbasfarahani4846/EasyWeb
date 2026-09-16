@@ -5,7 +5,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -108,7 +108,47 @@ function bundleModule(entryFilePath) {
   return `(() => {\n${combinedParts.join('\n\n')}\n})();\n`;
 }
 
-export function build() {
+/**
+ * Compile the readable filter catalogues in src/rules/lists.js into valid
+ * declarativeNetRequest rule-set JSON files under dist/rules/.
+ * Returns a summary so the build log can report rule counts.
+ */
+async function compileRuleSets() {
+  const listsPath = path.join(SRC_DIR, 'rules', 'lists.js');
+  if (!fs.existsSync(listsPath)) return null;
+
+  // Only ship rule-sets the manifest actually declares. While the ad blocker is
+  // parked the manifest has no `declarative_net_request` block, so compiling
+  // would just leave unreferenced files in dist/.
+  try {
+    const manifest = JSON.parse(fs.readFileSync(path.join(SRC_DIR, 'manifest.json'), 'utf8'));
+    if (!manifest.declarative_net_request?.rule_resources?.length) return null;
+  } catch (_) {
+    return null;
+  }
+
+  const { FILTER_LISTS } = await import(pathToFileURL(listsPath).href);
+  const { compileAll } = await import(pathToFileURL(path.join(SRC_DIR, 'rules', 'compile.js')).href);
+
+  const rulesDir = path.join(DIST_DIR, 'rules');
+  ensureDir(rulesDir);
+
+  // Redirect target used by the anti-adblock bait-script rules.
+  const noopSrc = path.join(SRC_DIR, 'rules', 'noop.js');
+  if (fs.existsSync(noopSrc)) {
+    fs.copyFileSync(noopSrc, path.join(rulesDir, 'noop.js'));
+  }
+
+  const { files, summary } = compileAll(FILTER_LISTS);
+
+  for (const [file, rules] of Object.entries(files)) {
+    fs.writeFileSync(path.join(rulesDir, file), `${JSON.stringify(rules, null, 2)}\n`, 'utf8');
+  }
+
+  return summary;
+}
+
+export async function build() {
   console.log('📦 Building EasyWeb extension...');
   const startTime = Date.now();
 
@@ -126,10 +166,34 @@ export function build() {
   // 3. Copy assets
   copyRecursive(path.join(SRC_DIR, 'assets'), path.join(DIST_DIR, 'assets'));
 
+  // 3b. Compile ad-blocker filter lists into declarativeNetRequest rule-sets
+  const ruleSummary = await compileRuleSets();
+  if (ruleSummary) console.log(`🛡  Ad-block rules compiled: ${ruleSummary}`);
+
   // 4. Bundle content script
   const contentEntry = path.join(SRC_DIR, 'content', 'index.js');
   const contentBundle = bundleModule(contentEntry);
   fs.writeFileSync(path.join(DIST_DIR, 'content.js'), contentBundle, 'utf8');
+
+  // 4b. Bundle the document_start guard (popup / click hijack protection).
+  //     Only when the manifest actually loads it — otherwise the file would ship
+  //     as an orphan nothing references.
+  const manifest = JSON.parse(fs.readFileSync(path.join(DIST_DIR, 'manifest.json'), 'utf8'));
+  const declaredScripts = (manifest.content_scripts || []).flatMap((entry) => entry.js || []);
+
+  const guardEntry = path.join(SRC_DIR, 'content', 'guard.js');
+  if (fs.existsSync(guardEntry) && declaredScripts.includes('guard.js')) {
+    const guardBundle = bundleModule(guardEntry);
+    fs.writeFileSync(path.join(DIST_DIR, 'guard.js'), guardBundle, 'utf8');
+  }
+
+  // 4c. Bundle the MAIN-world scriptlet engine (first-party ad removal).
+  //     It runs in the page's own JS context, so it must never touch chrome.*.
+  const injectEntry = path.join(SRC_DIR, 'inject', 'index.js');
+  if (fs.existsSync(injectEntry) && declaredScripts.includes('inject.js')) {
+    const injectBundle = bundleModule(injectEntry);
+    fs.writeFileSync(path.join(DIST_DIR, 'inject.js'), injectBundle, 'utf8');
+  }
 
   // 5. Bundle background script
   const bgEntry = path.join(SRC_DIR, 'background', 'index.js');
@@ -158,16 +222,18 @@ export function build() {
 
 // Watch mode
 if (process.argv.includes('--watch')) {
-  build();
   console.log('👀 Watching src/ for changes...');
+  const rebuild = () => {
+    build().catch((err) => console.error('❌ Build error:', err));
+  };
+  rebuild();
   fs.watch(SRC_DIR, { recursive: true }, (eventType, filename) => {
     console.log(`🔄 Change detected in ${filename}, rebuilding...`);
-    try {
-      build();
-    } catch (err) {
-      console.error('❌ Build error:', err);
-    }
+    rebuild();
   });
 } else {
-  build();
+  build().catch((err) => {
+    console.error('❌ Build error:', err);
+    process.exitCode = 1;
+  });
 }

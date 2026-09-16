@@ -6,20 +6,10 @@ import { ROOT_ATTR } from '../../shared/constants.js';
 export function getElements(selector) {
   if (!selector) return [];
   try {
-    const list = document.querySelectorAll(selector);
-    if (list.length > 0) return Array.from(list);
-  } catch (_) {}
-  try {
-    const segments = selector.split(/[ >+~]+/).filter(Boolean);
-    for (let i = segments.length - 1; i >= 0; i--) {
-      const fallback = segments[i];
-      if (fallback && !fallback.includes(':')) {
-        const list = document.querySelectorAll(fallback);
-        if (list.length > 0) return Array.from(list);
-      }
-    }
-  } catch (_) {}
-  return [];
+    return Array.from(document.querySelectorAll(selector));
+  } catch (_) {
+    return [];
+  }
 }
 
 export function restoreTextNodes() {
@@ -33,7 +23,7 @@ export function fontCssFor(font, rootId) {
   const weight = Number.isFinite(Number(font.weight)) ? Number(font.weight) : 400;
   const align = ['start', 'left', 'center', 'right', 'justify'].includes(font.align) ? font.align : 'start';
 
-  const iconExclude = ':not(svg):not(path):not(i):not([class*="icon"]):not([class*="Icon"]):not([class*="fa-"]):not([class*="material-icons"])';
+  const iconExclude = ':not(svg):not(path):not(i):not(yt-icon):not(yt-icon *):not(tp-yt-iron-icon):not(tp-yt-iron-icon *):not([class*="icon"]):not([class*="Icon"]):not([class*="fa-"]):not([class*="material-icons"])';
   const isPage = rootId === 'ew-page';
   const selector = `[${ROOT_ATTR}="${rootId}"]`;
 
@@ -41,7 +31,22 @@ export function fontCssFor(font, rootId) {
     return `
       html${selector},
       html${selector} body,
+      ${selector} ytd-app {
+        font-family: ${family} !important;
+        font-size: ${size} !important;
+        font-weight: ${weight} !important;
+        line-height: ${lineHeight} !important;
+        --yt-sans-serif-font: ${family} !important;
+        --ytd-user-comment-font-family: ${family} !important;
+        --yt-endpoint-font-family: ${family} !important;
+        --paper-font-common-base_-_font-family: ${family} !important;
+        --yt-formatted-string-font-family: ${family} !important;
+      }
       html${selector} body *${iconExclude} {
+        font-family: ${family} !important;
+      }
+      ${selector} :is(yt-formatted-string, yt-attributed-string, yt-core-attributed-string, tp-yt-paper-item, ytd-app, #video-title, #channel-name, #content-text, .ytd-watch-metadata, .ytd-video-primary-info-renderer)${iconExclude},
+      ${selector} :is(yt-formatted-string, yt-attributed-string, yt-core-attributed-string, tp-yt-paper-item) *${iconExclude} {
         font-family: ${family} !important;
       }
       ${selector} h1, ${selector} h2, ${selector} h3, ${selector} h4, ${selector} h5, ${selector} h6 {
@@ -50,26 +55,29 @@ export function fontCssFor(font, rootId) {
       ${selector} input, ${selector} button, ${selector} select, ${selector} textarea {
         font-family: ${family} !important;
       }
-      ${selector} p, ${selector} li, ${selector} blockquote, ${selector} figcaption, ${selector} td, ${selector} th, ${selector} span, ${selector} a {
+      ${selector} :is(p, li, blockquote, figcaption, td, th) {
         font-size: ${size} !important;
         font-weight: ${weight} !important;
         line-height: ${lineHeight} !important;
       }
-      ${selector} p, ${selector} blockquote, ${selector} figcaption {
+      ${selector} :is(p, blockquote, figcaption) {
         text-align: ${align} !important;
       }
     `;
   }
 
   return `
-    ${selector},
-    ${selector} *${iconExclude} {
+    html ${selector},
+    html ${selector} *${iconExclude} {
       font-family: ${family} !important;
       font-size: ${size} !important;
       font-weight: ${weight} !important;
       line-height: ${lineHeight} !important;
     }
-    ${selector} p, ${selector} blockquote, ${selector} figcaption {
+    html ${selector} :is(yt-formatted-string, yt-attributed-string, yt-core-attributed-string, tp-yt-paper-item) *${iconExclude} {
+      font-family: ${family} !important;
+    }
+    html ${selector} :is(p, blockquote, figcaption) {
       text-align: ${align} !important;
     }
   `;

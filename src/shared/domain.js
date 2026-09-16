@@ -21,3 +21,23 @@ export function cleanHostname(input = '') {
 export function hostnameFromUrl(url = '') {
   return cleanHostname(url);
 }
+
+/**
+ * Normalise any host / URL input down to a bare comparable hostname:
+ * strips the scheme, path, query, port, leading "www." and surrounding dots.
+ *
+ * Lives here rather than in adblock.js so that dependency-free consumers — the
+ * MAIN-world scriptlet bundle in particular — can use it without pulling the
+ * entire filter catalogue into the page.
+ */
+export function normalizeHost(input = '') {
+  try {
+    let raw = String(input || '').trim();
+    if (raw.includes('://')) raw = new URL(raw).hostname;
+    else raw = raw.split('/')[0].split('?')[0].split('#')[0];
+    raw = raw.replace(/:\d+$/, '');
+    return raw.replace(/^\.+|\.+$/g, '').toLowerCase().replace(/^www\./, '');
+  } catch (_) {
+    return String(input || '').trim().toLowerCase().replace(/^www\./, '');
+  }
+}

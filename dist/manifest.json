@@ -1,9 +1,19 @@
 {
   "manifest_version": 3,
-  "name": "EasyWeb — Layout, Fonts & AI",
-  "version": "1.0.7",
-  "description": "Personalize page direction and typography, then chat with page content using your preferred AI provider.",
-  "permissions": ["storage", "unlimitedStorage", "activeTab", "tabs", "sidePanel", "scripting"],
+  "name": "EasyWeb — Layout, Fonts, AI & Ad Blocker",
+  "version": "1.2.1",
+  "description": "Personalize page direction and typography, chat with page content using your preferred AI provider, and block ads, trackers and popup tabs.",
+  "minimum_chrome_version": "116",
+  "permissions": [
+    "storage",
+    "unlimitedStorage",
+    "activeTab",
+    "tabs",
+    "sidePanel",
+    "scripting",
+    "webNavigation",
+    "declarativeNetRequest"
+  ],
   "host_permissions": ["<all_urls>"],
   "action": {
     "default_title": "EasyWeb settings",
@@ -18,7 +28,51 @@
     "service_worker": "background.js",
     "type": "module"
   },
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "easyweb_ads",
+        "enabled": true,
+        "path": "rules/ads.json"
+      },
+      {
+        "id": "easyweb_trackers",
+        "enabled": true,
+        "path": "rules/trackers.json"
+      },
+      {
+        "id": "easyweb_popups",
+        "enabled": true,
+        "path": "rules/popups.json"
+      },
+      {
+        "id": "easyweb_annoyances",
+        "enabled": false,
+        "path": "rules/annoyances.json"
+      }
+    ]
+  },
   "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["guard.js"],
+      "run_at": "document_start",
+      "all_frames": true,
+      "match_about_blank": true
+    },
+    {
+      "matches": [
+        "*://*.youtube.com/*",
+        "*://*.youtube-nocookie.com/*",
+        "*://*.youtubekids.com/*",
+        "*://*.youtubeeducation.com/*",
+        "*://*.spotify.com/*"
+      ],
+      "js": ["inject.js"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": true
+    },
     {
       "matches": ["<all_urls>"],
       "js": ["content.js"],
@@ -36,6 +90,10 @@
     },
     {
       "resources": ["assets/fonts/*"],
+      "matches": ["<all_urls>"]
+    },
+    {
+      "resources": ["rules/noop.js"],
       "matches": ["<all_urls>"]
     }
   ]

@@ -1,7 +1,8 @@
 /**
  * Scope Tabs Component (Entire Page vs Selected Sections)
  */
-import { state, $, saveSite } from '../state.js';
+import { syncSiteEnabled } from '../../shared/models.js';
+import { state, $, saveSite, applyLive } from '../state.js';
 
 export function bindScopeTabs(renderCallback) {
   document.querySelectorAll('.scope-tab').forEach((btn) => {
@@ -19,6 +20,8 @@ export function bindScopeTabs(renderCallback) {
         state.activeTargetId = null;
       }
 
+      syncSiteEnabled(state.site);
+      applyLive();
       renderCallback();
       await saveSite();
     };

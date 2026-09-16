@@ -29,11 +29,27 @@ export function restoreAllDirections() {
 
 export function applyDirectionToRoot(root, value) {
   if (!root) return;
-  if (!directionSnapshots.has(root)) {
-    directionSnapshots.set(root, root.getAttribute('dir'));
+  const isApplied = root.getAttribute('dir') === value && root.getAttribute(DIRECTION_ATTR) === value;
+  if (!isApplied) {
+    if (!directionSnapshots.has(root)) {
+      directionSnapshots.set(root, root.getAttribute('dir'));
+    }
+    root.setAttribute('dir', value);
+    root.setAttribute(DIRECTION_ATTR, value);
+    root.style.setProperty('direction', value, 'important');
+    root.style.setProperty('text-align', value === 'rtl' ? 'right' : 'left', 'important');
   }
-  root.setAttribute('dir', value);
-  root.setAttribute(DIRECTION_ATTR, value);
-  root.style.setProperty('direction', value, 'important');
-  root.style.setProperty('text-align', value === 'rtl' ? 'right' : 'left', 'important');
+
+  if (root === document.documentElement && document.body) {
+    const isBodyApplied = document.body.getAttribute('dir') === value && document.body.getAttribute(DIRECTION_ATTR) === value;
+    if (!isBodyApplied) {
+      if (!directionSnapshots.has(document.body)) {
+        directionSnapshots.set(document.body, document.body.getAttribute('dir'));
+      }
+      document.body.setAttribute('dir', value);
+      document.body.setAttribute(DIRECTION_ATTR, value);
+      document.body.style.setProperty('direction', value, 'important');
+      document.body.style.setProperty('text-align', value === 'rtl' ? 'right' : 'left', 'important');
+    }
+  }
 }

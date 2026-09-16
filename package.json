@@ -1,13 +1,17 @@
 {
   "name": "easyweb",
-  "version": "1.0.0",
-  "description": "EasyWeb Chrome Extension - Direction and Typography Customizer with Persian Support",
+  "version": "1.2.0",
+  "description": "EasyWeb Chrome Extension - Direction and Typography Customizer with Persian Support, AI Assistant and Ad Blocker",
   "type": "module",
   "scripts": {
     "build": "node build.js",
-    "watch": "node build.js --watch"
+    "watch": "node build.js --watch",
+    "test": "node tests/run.mjs",
+    "audit": "node scripts/audit-dist.mjs",
+    "release": "node build.js && node scripts/audit-dist.mjs",
+    "verify": "npm run test && npm run release"
   },
-  "keywords": ["chrome-extension", "rtl", "typography", "persian-fonts"],
+  "keywords": ["chrome-extension", "rtl", "typography", "persian-fonts", "adblock", "privacy"],
   "author": "Abbas Farahani",
   "license": "MIT"
 }

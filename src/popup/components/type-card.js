@@ -2,9 +2,14 @@
  * Type / Typography Card Controller
  */
 import { DEFAULT_FONTS, DEFAULT_SITE } from '../../shared/defaults.js';
-import { state, $, saveSite, activeTarget, setStatus, ensureContentScript } from '../state.js';
+import { syncSiteEnabled } from '../../shared/models.js';
+import { state, $, saveSite, scheduleSaveSite, applyLive, activeTarget, setStatus, ensureContentScript } from '../state.js';
 
 export function bindTypeCard(renderCallback) {
+  $('type-card')?.querySelector('.eyebrow')?.addEventListener('click', () => {
+    $('type-card')?.classList.toggle('collapsed');
+  });
+
   $('font-target').onclick = () => {
     state.activeTargetId = null;
     renderCallback();
@@ -14,39 +19,71 @@ export function bindTypeCard(renderCallback) {
     const checked = $('font-enabled').checked;
     const scope = state.site.font.scope || 'page';
 
-    if (scope === 'page') {
-      state.site.font.enabled = checked;
-    } else {
-      if (checked) {
-        if (!state.site.targets.some((t) => t.font?.enabled)) {
-          const target = activeTarget('font') || state.site.targets[0];
-          if (target) {
-            target.font = target.font || { ...DEFAULT_SITE.font, enabled: true };
-            target.font.enabled = true;
-          }
+    if (checked) {
+      if (scope === 'element') {
+        const targets = state.site.targets || [];
+        const fontTargets = targets.filter((t) => t.font);
+        if (fontTargets.length > 0) {
+          const target = activeTarget('font') || fontTargets[0];
+          target.font = target.font || { ...DEFAULT_SITE.font, enabled: true };
+          target.font.enabled = true;
+        } else if (targets.length > 0) {
+          targets[0].font = { ...DEFAULT_SITE.font, enabled: true };
+          state.activeTargetId = targets[0].id;
+        } else {
+          startPicker('font');
+          return;
         }
       } else {
-        state.site.targets.forEach((t) => {
-          if (t.font) t.font.enabled = false;
-        });
+        state.site.font.scope = 'page';
+        state.site.font.enabled = true;
+      }
+    } else {
+      if (scope === 'element') {
+        if (Array.isArray(state.site.targets)) {
+          state.site.targets.forEach((t) => {
+            if (t.font) t.font.enabled = false;
+          });
+        }
+      } else {
+        state.site.font.enabled = false;
       }
     }
+    syncSiteEnabled(state.site);
+    applyLive();
     renderCallback();
     await saveSite();
   };
 
-  $('font-family').onchange = async () => {
+  const onFamilyChange = () => {
     const scope = state.site.font.scope || 'page';
-    const target = scope === 'element' ? activeTarget('font') : null;
-    if (target) {
-      target.font = { ...target.font, enabled: true, scope: 'element', family: $('font-family').value };
+    const val = $('font-family').value;
+    if (scope === 'element') {
+      const target = activeTarget('font');
+      if (target) {
+        target.font = { ...target.font, enabled: true, scope: 'element', family: val };
+      } else if (Array.isArray(state.site.targets) && state.site.targets.length) {
+        state.site.targets.forEach((t) => {
+          if (t.font) {
+            t.font.family = val;
+            t.font.enabled = true;
+          }
+        });
+      }
     } else {
       state.site.font.enabled = true;
-      state.site.font.family = $('font-family').value;
+      state.site.font.family = val;
+      state.site.font.scope = 'page';
     }
-    renderCallback();
-    await saveSite();
+    syncSiteEnabled(state.site);
+    $('font-enabled').checked = true;
+    $('type-card')?.classList.remove('collapsed');
+    applyLive();
+    scheduleSaveSite(100);
   };
+
+  $('font-family').onchange = onFamilyChange;
+  $('font-family').oninput = onFamilyChange;
 
   const fields = [
     ['font-size', 'size'],
@@ -57,23 +94,39 @@ export function bindTypeCard(renderCallback) {
   ];
 
   fields.forEach(([id, key]) => {
-    $(id).onchange = async () => {
+    const handler = () => {
       const scope = state.site.font.scope || 'page';
-      const target = scope === 'element' ? activeTarget('font') : null;
       const rawVal = $(id).value;
       let val = rawVal;
       if (key === 'size') val = Math.max(8, Math.min(96, Number(rawVal) || 16));
       if (key === 'weight') val = Math.max(100, Math.min(1000, Number(rawVal) || 400));
 
-      if (target) {
-        target.font = { ...target.font, enabled: true, scope: 'element', [key]: val };
+      if (scope === 'element') {
+        const target = activeTarget('font');
+        if (target) {
+          target.font = { ...target.font, enabled: true, scope: 'element', [key]: val };
+        } else if (Array.isArray(state.site.targets) && state.site.targets.length) {
+          state.site.targets.forEach((t) => {
+            if (t.font) {
+              t.font[key] = val;
+              t.font.enabled = true;
+            }
+          });
+        }
       } else {
         state.site.font.enabled = true;
         state.site.font[key] = val;
+        state.site.font.scope = 'page';
       }
-      renderCallback();
-      await saveSite();
+      syncSiteEnabled(state.site);
+      $('font-enabled').checked = true;
+      $('type-card')?.classList.remove('collapsed');
+      applyLive();
+      scheduleSaveSite(150);
     };
+
+    $(id).oninput = handler;
+    $(id).onchange = handler;
   });
 
   $('pick-font').onclick = () => startPicker('font');
@@ -81,6 +134,8 @@ export function bindTypeCard(renderCallback) {
   $('reset-font').onclick = async () => {
     state.site.font = structuredClone(DEFAULT_SITE.font);
     state.site.targets = state.site.targets.map((t) => ({ ...t, font: null }));
+    syncSiteEnabled(state.site);
+    applyLive();
     renderCallback();
     await saveSite();
   };
@@ -92,7 +147,11 @@ export function bindTypeCard(renderCallback) {
 
 export function renderTypeCard(renderCallback) {
   const fontScope = state.site.font.scope || 'page';
-  $('font-enabled').checked = fontScope === 'page' ? state.site.font.enabled : state.site.targets.some((t) => t.font?.enabled);
+  const hasFontTargets = Array.isArray(state.site.targets) && state.site.targets.some((t) => t.font?.enabled);
+  const fontOn = fontScope === 'page' ? Boolean(state.site.font?.enabled) : hasFontTargets;
+  $('font-enabled').checked = fontOn;
+  const shouldCollapse = !fontOn && fontScope === 'page';
+  $('type-card')?.classList.toggle('collapsed', shouldCollapse);
 
   const fontTarget = fontScope === 'element' ? activeTarget('font') : null;
   const fontCfg = fontTarget?.font || state.site.font;
@@ -103,11 +162,14 @@ export function renderTypeCard(renderCallback) {
       : (fontScope === 'element' ? 'Scope: <b>Sections</b> (Click ＋ to Add)' : 'Scope: <b>Page</b>');
   }
 
-  $('font-size').value = fontCfg.size || 16;
-  $('font-unit').value = fontCfg.unit || 'px';
-  $('line-height').value = fontCfg.lineHeight || '1.6';
-  $('font-weight').value = fontCfg.weight || 400;
-  $('text-align').value = fontCfg.align || 'start';
+  const active = document.activeElement;
+  const isEditing = (id) => active && active.id === id;
+
+  if (!isEditing('font-size')) $('font-size').value = fontCfg.size || 16;
+  if (!isEditing('font-unit')) $('font-unit').value = fontCfg.unit || 'px';
+  if (!isEditing('line-height')) $('line-height').value = fontCfg.lineHeight || '1.6';
+  if (!isEditing('font-weight')) $('font-weight').value = fontCfg.weight || 400;
+  if (!isEditing('text-align')) $('text-align').value = fontCfg.align || 'start';
 
   renderFontOptions();
   renderCustomFonts(renderCallback);
@@ -118,23 +180,32 @@ function renderFontOptions() {
   if (!select) return;
   const fontTarget = activeTarget('font');
   const current = fontTarget?.font?.family || state.site.font.family;
-  select.innerHTML = '';
 
   const allFonts = [
     ...DEFAULT_FONTS,
     ...state.fonts.map((f) => ({ name: f.name, family: `'${f.name.replaceAll("'", "\\'")}'` }))
   ];
 
-  allFonts.forEach((f) => {
-    const opt = document.createElement('option');
-    opt.value = f.family;
-    opt.textContent = f.name;
-    select.append(opt);
-  });
+  if (select.children.length !== allFonts.length) {
+    select.innerHTML = '';
+    allFonts.forEach((f) => {
+      const opt = document.createElement('option');
+      opt.value = f.family;
+      opt.textContent = f.name;
+      select.append(opt);
+    });
+  }
 
-  select.value = current;
   if (select.value !== current) {
-    select.value = DEFAULT_FONTS[0].family;
+    select.value = current;
+    if (select.value !== current) {
+      const match = Array.from(select.options).find((opt) =>
+        opt.value.includes(current) || current.includes(opt.value) ||
+        opt.textContent.trim().toLowerCase() === current.trim().toLowerCase()
+      );
+      if (match) select.value = match.value;
+      else select.value = DEFAULT_FONTS[0].family;
+    }
   }
 }
 
@@ -221,6 +292,10 @@ async function startPicker(feature) {
   const ready = await ensureContentScript();
   if (!ready) return setStatus('Picker unavailable', true);
   const result = await chrome.tabs.sendMessage(state.tabId, { type: 'START_PICKER', feature }).catch(() => null);
-  if (result?.ok) setStatus('Click an element on the page');
-  else setStatus('Picker unavailable', true);
+  // ponytail: close popup so user sees page and can click element
+  if (result?.ok) {
+    window.close();
+  } else {
+    setStatus('Picker unavailable', true);
+  }
 }

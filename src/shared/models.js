@@ -2,13 +2,15 @@
  * Site Model, State Synchronization and Migration Helpers
  */
 import { DEFAULT_SITE } from './defaults.js';
+import { DEFAULT_BLOCKER, normalizePickedRules } from './adblock.js';
 
 export function mergeSite(value = {}) {
-  return {
+  const merged = {
     enabled: Boolean(value?.enabled),
     direction: { ...DEFAULT_SITE.direction, ...(value?.direction || {}) },
     font: { ...DEFAULT_SITE.font, ...(value?.font || {}) },
     translate: { ...DEFAULT_SITE.translate, ...(value?.translate || {}) },
+    blocker: mergeBlocker(value?.blocker),
     targets: Array.isArray(value?.targets) ? value.targets.map((t) => ({
       id: t.id || `t${Math.random().toString(36).slice(2, 8)}`,
       selector: t.selector || '',
@@ -17,6 +19,32 @@ export function mergeSite(value = {}) {
       font: t.font ? { ...DEFAULT_SITE.font, ...t.font } : null,
       translate: t.translate ? { ...DEFAULT_SITE.translate, ...t.translate } : null
     })) : []
+  };
+
+  // ponytail: preserve user scope choice without forcing to page when targets empty
+  merged.direction.scope = value?.direction?.scope === 'element' ? 'element' : 'page';
+  merged.font.scope = value?.font?.scope === 'element' ? 'element' : 'page';
+  merged.translate.scope = value?.translate?.scope === 'element' ? 'element' : 'page';
+
+  syncSiteEnabled(merged);
+  return merged;
+}
+
+/**
+ * Normalise a per-site blocker configuration.
+ * `toggles` stays `null` unless the user explicitly customised them, so that
+ * mode presets keep working after the global defaults change.
+ */
+export function mergeBlocker(value) {
+  if (!value || typeof value !== 'object') return { ...DEFAULT_BLOCKER, picked: [] };
+  const toggles = value.toggles && typeof value.toggles === 'object'
+    ? Object.fromEntries(Object.entries(value.toggles).map(([k, v]) => [k, Boolean(v)]))
+    : null;
+  return {
+    enabled: value.enabled === undefined ? DEFAULT_BLOCKER.enabled : Boolean(value.enabled),
+    mode: typeof value.mode === 'string' ? value.mode : DEFAULT_BLOCKER.mode,
+    toggles,
+    picked: normalizePickedRules(value.picked)
   };
 }
 
@@ -66,9 +94,10 @@ export function migrateSite(value) {
     }
   }
 
-  merged.direction.scope = value?.direction?.scope || (merged.targets.some((t) => t.direction?.enabled) ? 'element' : 'page');
-  merged.font.scope = value?.font?.scope || (merged.targets.some((t) => t.font?.enabled) ? 'element' : 'page');
-  merged.translate.scope = value?.translate?.scope || (merged.targets.some((t) => t.translate?.enabled) ? 'element' : 'page');
+  // ponytail: preserve user scope choice without forcing to page when targets empty
+  merged.direction.scope = value?.direction?.scope === 'element' ? 'element' : 'page';
+  merged.font.scope = value?.font?.scope === 'element' ? 'element' : 'page';
+  merged.translate.scope = value?.translate?.scope === 'element' ? 'element' : 'page';
 
   if (value && value.enabled === undefined) {
     const dirActive = merged.direction.scope === 'page' ? merged.direction.enabled : merged.targets.some((t) => t.direction?.enabled);
@@ -80,13 +109,14 @@ export function migrateSite(value) {
 }
 
 export function syncSiteEnabled(site) {
-  const dirScope = site.direction.scope || 'page';
-  const fontScope = site.font.scope || 'page';
+  if (!site) return false;
+  const dirScope = site.direction?.scope || 'page';
+  const fontScope = site.font?.scope || 'page';
   const transScope = site.translate?.scope || 'page';
 
-  const dirActive = dirScope === 'page' ? site.direction.enabled : site.targets.some((t) => t.direction?.enabled);
-  const fontActive = fontScope === 'page' ? site.font.enabled : site.targets.some((t) => t.font?.enabled);
-  const transActive = transScope === 'page' ? site.translate?.enabled : site.targets.some((t) => t.translate?.enabled);
+  const dirActive = dirScope === 'page' ? Boolean(site.direction?.enabled) : (Array.isArray(site.targets) && site.targets.some((t) => t.direction?.enabled));
+  const fontActive = fontScope === 'page' ? Boolean(site.font?.enabled) : (Array.isArray(site.targets) && site.targets.some((t) => t.font?.enabled));
+  const transActive = transScope === 'page' ? Boolean(site.translate?.enabled) : (Array.isArray(site.targets) && site.targets.some((t) => t.translate?.enabled));
 
   site.enabled = dirActive || fontActive || transActive;
   return site.enabled;

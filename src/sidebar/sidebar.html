@@ -82,6 +82,7 @@
         <nav class="modal-tabs">
           <button type="button" class="tab-btn active" data-tab="providers">مدل‌ها و سرویس‌دهنده‌ها</button>
           <button type="button" class="tab-btn" data-tab="translation">ترجمه با هوش مصنوعی</button>
+          <button type="button" class="tab-btn" data-tab="adblock">ادبلاکر و لیست‌ها</button>
           <button type="button" class="tab-btn" data-tab="tools">ابزارهای پرامپت</button>
           <button type="button" class="tab-btn" data-tab="backup">پشتیبان‌گیری و بازیابی</button>
         </nav>
@@ -172,7 +173,150 @@
             </div>
           </div>
 
-          <!-- TAB 3: CUSTOM TOOLS -->
+          <!-- TAB 3: AD BLOCKER -->
+          <div id="tab-adblock" class="tab-content">
+            <div class="section-box">
+              <h3>وضعیت کلی ادبلاکر</h3>
+              <p class="hint">این تنظیمات برای همه سایت‌ها اعمال می‌شود. برای هر سایت می‌توانید از پاپ‌آپ افزونه حالت اختصاصی انتخاب کنید.</p>
+
+              <div class="ab-switch-row">
+                <label class="ab-inline-check">
+                  <input type="checkbox" id="ab-global-enabled">
+                  <span>ادبلاکر فعال باشد</span>
+                </label>
+                <select id="ab-global-mode" aria-label="حالت سراسری">
+                  <option value="default">استاندارد</option>
+                  <option value="strict">سخت‌گیرانه</option>
+                  <option value="custom">سفارشی (دستی)</option>
+                  <option value="off">غیرفعال</option>
+                </select>
+              </div>
+
+              <div class="ab-grid" id="ab-global-toggles"></div>
+
+              <label class="ab-inline-check">
+                <input type="checkbox" id="ab-show-badge">
+                <span>نمایش شمارنده مسدودسازی روی آیکون افزونه</span>
+              </label>
+            </div>
+
+            <div class="section-box">
+              <h3>محافظ تب و پاپ‌آپ</h3>
+              <p class="hint">جلوگیری از باز شدن خودکار تب جدید وقتی روی ویدیو، تصویر یا هر جای صفحه کلیک می‌کنید.</p>
+
+              <label class="ab-inline-check">
+                <input type="checkbox" id="ab-guard-enabled">
+                <span>محافظ پاپ‌آپ فعال باشد</span>
+              </label>
+              <label class="ab-inline-check">
+                <input type="checkbox" id="ab-guard-nogesture">
+                <span>بستن تب‌هایی که بدون هیچ کلیک کاربر باز می‌شوند</span>
+              </label>
+              <label class="ab-inline-check">
+                <input type="checkbox" id="ab-guard-thirdparty">
+                <span>بستن پاپ‌آپ‌های شخص ثالث در نتیجه کلیک (سخت‌گیرانه)</span>
+              </label>
+              <label class="ab-inline-check">
+                <input type="checkbox" id="ab-guard-media">
+                <span>محافظ کنترل‌های ویدیو: جلو، عقب، صدا و تمام‌صفحه هرگز نباید تب جدید باز کنند</span>
+              </label>
+
+              <label class="ab-field">
+                <span>دامنه‌های مجاز برای باز کردن پنجره (هر خط یکی) — مانند ورود با گوگل و درگاه پرداخت</span>
+                <textarea id="ab-guard-allowed" rows="3" placeholder="accounts.google.com&#10;paypal.com"></textarea>
+              </label>
+              <div class="btn-row">
+                <button id="ab-save-guard" class="btn-primary">ذخیره تنظیمات محافظ</button>
+              </div>
+            </div>
+
+            <div class="section-box">
+              <h3>تبلیغات یوتیوب و اسپاتیفای</h3>
+              <p class="hint">
+                یوتیوب و اسپاتیفای تبلیغاتشان را از دامنه‌ی خودشان و داخل همان پاسخ‌های API و استریم صدا می‌فرستند؛
+                پس بلاک کردن دامنه هیچ اثری ندارد. EasyWeb یک اسکریپت کوچک را در خودِ صفحه اجرا می‌کند تا تبلیغات را
+                از داده‌ای که پخش‌کننده می‌خواند حذف کند و تبلیغ‌های چسبیده به ویدیو را رد کند.
+              </p>
+
+              <label class="ab-inline-check">
+                <input type="checkbox" id="ab-scriptlets">
+                <span>حذف تبلیغات یوتیوب و بی‌صدا کردن تبلیغات اسپاتیفای</span>
+              </label>
+
+              <p class="hint" style="margin-top:6px">
+                در اسپاتیفای وب، تبلیغ داخل خودِ استریم صدا قرار می‌گیرد و هیچ افزونه‌ای نمی‌تواند آن را حذف کند؛
+                EasyWeb آن را بی‌صدا می‌کند و در صورت امکان از آن رد می‌شود.
+              </p>
+            </div>
+
+            <div class="section-box">
+              <h3>پاک‌سازی بصری و مقابله با مزاحمت‌ها</h3>
+
+              <label class="ab-inline-check">
+                <input type="checkbox" id="ab-cos-frames">
+                <span>حذف کامل آی‌فریم‌های تبلیغاتی</span>
+              </label>
+              <label class="ab-inline-check">
+                <input type="checkbox" id="ab-cos-collapse">
+                <span>پنهان‌سازی جای خالی باقی‌مانده از تبلیغات</span>
+              </label>
+              <label class="ab-inline-check">
+                <input type="checkbox" id="ab-cos-antiadblock">
+                <span>مقابله با پیام «لطفاً ادبلاکر خود را خاموش کنید»</span>
+              </label>
+
+              <label class="ab-field">
+                <span>سلکتورهای CSS سفارشی (هر خط یک سلکتور)</span>
+                <textarea id="ab-selectors" rows="3" placeholder=".my-ad-banner&#10;#sponsored-box"></textarea>
+              </label>
+              <div class="btn-row">
+                <button id="ab-save-cosmetic" class="btn-primary">ذخیره پاک‌سازی بصری</button>
+              </div>
+            </div>
+
+            <div class="section-box">
+              <h3>لیست سفید — سایت‌های مورد اعتماد</h3>
+              <p class="hint">در این سایت‌ها ادبلاکر هیچ درخواستی را مسدود نمی‌کند. زیردامنه‌ها هم به‌صورت خودکار شامل می‌شوند.</p>
+              <div class="ab-add-row">
+                <input id="ab-whitelist-input" type="text" placeholder="example.com">
+                <button id="ab-whitelist-add" class="btn-secondary">افزودن</button>
+              </div>
+              <div id="ab-whitelist-list" class="ab-domain-list"></div>
+            </div>
+
+            <div class="section-box">
+              <h3>لیست سیاه — دامنه‌های مسدود</h3>
+              <p class="hint">این دامنه‌ها همیشه و به‌طور کامل مسدود می‌شوند (حتی اگر در لیست‌های پیش‌فرض نباشند).</p>
+              <div class="ab-add-row">
+                <input id="ab-blacklist-input" type="text" placeholder="ads.example.com">
+                <button id="ab-blacklist-add" class="btn-secondary">افزودن</button>
+              </div>
+              <div id="ab-blacklist-list" class="ab-domain-list"></div>
+            </div>
+
+            <div class="section-box">
+              <h3>فیلترهای سفارشی (پیشرفته)</h3>
+              <p class="hint">
+                هر خط یک فیلتر به سبک Adblock/uBlock. مثال: <code>||ads.example.com^</code> برای مسدودسازی،
+                <code>@@||trusted.com^</code> برای استثنا، و <code>/banner\d+/</code> برای الگوی regex.
+              </p>
+              <textarea id="ab-custom-rules" rows="5" placeholder="||ads.example.com^&#10;@@||trusted.com^"></textarea>
+              <div class="btn-row">
+                <button id="ab-save-rules" class="btn-primary">ذخیره فیلترها</button>
+              </div>
+            </div>
+
+            <div class="section-box">
+              <h3>آمار و وضعیت</h3>
+              <div id="ab-stats" class="ab-stats-box"></div>
+              <div class="btn-row">
+                <button id="ab-refresh-stats" class="btn-secondary">بروزرسانی</button>
+                <button id="ab-reset-stats" class="btn-secondary">صفر کردن آمار</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 4: CUSTOM TOOLS -->
           <div id="tab-tools" class="tab-content">
             <div class="section-box">
               <h3>ابزارها و میانبرهای پرامپت</h3>
@@ -183,7 +327,7 @@
             </div>
           </div>
 
-          <!-- TAB 4: BACKUP & RESTORE -->
+          <!-- TAB 5: BACKUP & RESTORE -->
           <div id="tab-backup" class="tab-content">
             <div class="section-box">
               <h3>پشتیبان‌گیری و خروجی داده‌ها (Export JSON)</h3>
@@ -201,6 +345,14 @@
                   📤 انتخاب و بازیابی فایل JSON
                   <input id="import-backup-file" type="file" accept=".json,application/json" style="display:none">
                 </label>
+              </div>
+            </div>
+
+            <div class="section-box" style="border: 1px solid rgba(255, 77, 106, 0.4); background: rgba(255, 77, 106, 0.06);">
+              <h3 style="color: #ff8d9c;">پاک‌سازی تمام داده‌های مرورگر (Clear All Stored Data)</h3>
+              <p class="hint">حذف کامل تمامی تنظیمات دامنه‌ها، فونت‌های ذخیره‌شده، تاریخچه گفتگوها، آمار و اتصالات ذخیره‌شده در حافظه مرورگر و بازنشانی به وضعیت اولیه.</p>
+              <div class="btn-row">
+                <button type="button" id="clear-all-data-btn" class="btn-danger" style="background: linear-gradient(135deg, #c0263e, #8c192d); color: #fff; border: 1px solid #ff667d; border-radius: 6px; padding: 7px 15px; font-weight: 600; cursor: pointer;">🗑️ پاک‌سازی تمام داده‌های ذخیره‌شده</button>
               </div>
             </div>
           </div>

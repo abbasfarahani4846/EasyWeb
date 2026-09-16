@@ -2,6 +2,9 @@
  * Sidebar AI Assistant & Settings Modal Controller
  */
 import { AI_PROVIDERS_CONFIG } from '../shared/ai-providers.js';
+import { TOGGLE_META, TOGGLE_KEYS, MODE_PRESETS, formatCount } from '../shared/adblock.js';
+import { DEFAULTS } from '../shared/defaults.js';
+import { escapeHtml, assistantBody } from '../shared/markdown.js';
 
 let activeTab = null;
 let domain = '';
@@ -12,6 +15,9 @@ let translationAi = { providerId: '', model: '' };
 let tools = [];
 let historyKey = '';
 let history = [];
+let adblockConfig = null;
+let adblockStats = null;
+let adblockDiag = null;
 
 const $ = (id) => document.getElementById(id);
 const send = (message) => chrome.runtime.sendMessage(message);
@@ -27,13 +33,6 @@ function setStatus(text, error = false) {
       if (node.textContent === text) node.textContent = '';
     });
   }, 4000);
-}
-
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
 }
 
 /* Chat rendering */
@@ -53,7 +52,13 @@ function renderHistory() {
     const label = document.createElement('span');
     label.className = 'message-label';
     label.textContent = item.role === 'user' ? 'شما' : 'EasyWeb AI';
-    node.append(label, document.createTextNode(item.text));
+    if (item.role === 'assistant') {
+      node.innerHTML = '';
+      node.append(label);
+      node.insertAdjacentHTML('beforeend', assistantBody(item.text));
+    } else {
+      node.append(label, document.createTextNode(item.text));
+    }
     chat.append(node);
   });
   chat.scrollTop = chat.scrollHeight;
@@ -360,6 +365,288 @@ function renderTools() {
   });
 }
 
+/* ---------------- Ad blocker settings ---------------- */
+
+function parseLines(text = '') {
+  return [...new Set(
+    String(text || '')
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+  )];
+}
+
+async function loadAdblock() {
+  const [status, diag] = await Promise.all([
+    send({ type: 'ADBLOCK_STATUS' }),
+    send({ type: 'ADBLOCK_DIAGNOSTICS' })
+  ]);
+  if (status?.ok) {
+    adblockConfig = status.global;
+    adblockStats = status.stats;
+  }
+  if (diag?.ok) adblockDiag = diag;
+  return status;
+}
+
+async function patchAdblock(patch, message) {
+  const res = await send({ type: 'ADBLOCK_UPDATE_GLOBAL', patch });
+  if (res?.ok) {
+    adblockConfig = res.config;
+    if (message) setStatus(message);
+  } else {
+    setStatus('خطا در ذخیره تنظیمات ادبلاکر', true);
+  }
+  renderAdblockTab();
+}
+
+function renderGlobalToggles() {
+  const grid = $('ab-global-toggles');
+  if (!grid || !adblockConfig) return;
+  grid.replaceChildren();
+
+  TOGGLE_KEYS.forEach((key) => {
+    const meta = TOGGLE_META[key];
+    const card = document.createElement('div');
+    card.className = 'ab-toggle-card';
+
+    const label = document.createElement('label');
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.checked = Boolean(adblockConfig.toggles?.[key]);
+    input.onchange = () => {
+      const toggles = { ...(adblockConfig.toggles || {}), [key]: input.checked };
+      patchAdblock({ mode: 'custom', toggles }, '✓ تنظیمات ادبلاکر ذخیره شد');
+    };
+
+    const span = document.createElement('span');
+    span.textContent = meta.name;
+    label.append(input, span);
+
+    const small = document.createElement('small');
+    small.textContent = meta.hint;
+
+    card.append(label, small);
+    grid.append(card);
+  });
+}
+
+function renderDomainList(containerId, list, listName) {
+  const container = $(containerId);
+  if (!container) return;
+  container.replaceChildren();
+
+  const entries = (list || []).slice().sort();
+  if (!entries.length) {
+    const empty = document.createElement('p');
+    empty.className = 'ab-empty';
+    empty.textContent = listName === 'whitelist'
+      ? 'هنوز سایتی به لیست سفید اضافه نشده است.'
+      : 'هنوز دامنه‌ای به لیست سیاه اضافه نشده است.';
+    container.append(empty);
+    return;
+  }
+
+  entries.forEach((entry) => {
+    const row = document.createElement('div');
+    row.className = 'ab-domain-row';
+
+    const name = document.createElement('span');
+    name.className = 'ab-domain-name';
+    name.textContent = entry;
+
+    const right = document.createElement('div');
+    right.style.display = 'flex';
+    right.style.alignItems = 'center';
+    right.style.gap = '8px';
+
+    const hits = adblockStats?.perDomain?.[entry];
+    if (hits) {
+      const count = document.createElement('span');
+      count.className = 'ab-domain-count';
+      count.textContent = `${formatCount(hits)} مورد`;
+      right.append(count);
+    }
+
+    const del = document.createElement('button');
+    del.className = 'btn-del';
+    del.textContent = '✕';
+    del.title = 'حذف از لیست';
+    del.onclick = async () => {
+      const res = await send({ type: 'ADBLOCK_SET_LIST', list: listName, domain: entry, present: false });
+      if (res?.ok) {
+        adblockConfig = res.config;
+        renderAdblockTab();
+        setStatus('✓ از لیست حذف شد');
+      }
+    };
+
+    right.append(del);
+    row.append(name, right);
+    container.append(row);
+  });
+}
+
+function renderAdblockStats() {
+  const box = $('ab-stats');
+  if (!box) return;
+  const s = adblockStats || {};
+
+  const cells = [
+    ['تبلیغات و درخواست‌های شبکه‌ای', formatCount(s.total || 0), false],
+    ['پاپ‌آپ و تب بسته‌شده', formatCount(s.popups || 0), false],
+    ['عنصر تبلیغاتی پنهان‌شده', formatCount(s.cosmetic || 0), false],
+    ['دامنه‌های دارای فعالیت', String(Object.keys(s.perDomain || {}).length), false]
+  ];
+
+  box.replaceChildren();
+  cells.forEach(([label, value, wide]) => {
+    const cell = document.createElement('div');
+    cell.className = wide ? 'ab-stat wide' : 'ab-stat';
+    const span = document.createElement('span');
+    span.textContent = label;
+    const strong = document.createElement('b');
+    strong.textContent = value;
+    cell.append(span, strong);
+    box.append(cell);
+  });
+
+  if (adblockDiag) {
+    const diag = document.createElement('div');
+    diag.className = 'ab-stat wide ab-diag';
+    const since = s.since ? new Date(s.since).toLocaleString('fa-IR') : '—';
+    diag.textContent = `session-rules: ${adblockDiag.sessionRuleCount ?? '—'} · tracked-gestures: ${adblockDiag.guard?.trackedGestures ?? 0} · pending-targets: ${adblockDiag.guard?.pendingSuspects ?? 0} · since: ${since}`;
+    box.append(diag);
+  }
+}
+
+function renderAdblockTab() {
+  if (!adblockConfig) return;
+
+  const enabled = $('ab-global-enabled');
+  if (enabled) enabled.checked = Boolean(adblockConfig.enabled);
+
+  const mode = $('ab-global-mode');
+  if (mode) mode.value = adblockConfig.mode || 'default';
+
+  const badge = $('ab-show-badge');
+  if (badge) badge.checked = adblockConfig.showBadge !== false;
+
+  const guard = adblockConfig.popupGuard || {};
+  if ($('ab-guard-enabled')) $('ab-guard-enabled').checked = guard.enabled !== false;
+  if ($('ab-guard-nogesture')) $('ab-guard-nogesture').checked = guard.blockWithoutGesture !== false;
+  if ($('ab-guard-thirdparty')) $('ab-guard-thirdparty').checked = guard.blockThirdPartyPopup !== false;
+  if ($('ab-guard-media')) $('ab-guard-media').checked = guard.blockFromMedia !== false;
+  if ($('ab-guard-allowed') && document.activeElement !== $('ab-guard-allowed')) {
+    $('ab-guard-allowed').value = (guard.allowedHosts || []).join('\n');
+  }
+
+  const cosmetic = adblockConfig.cosmetic || {};
+  if ($('ab-cos-frames')) $('ab-cos-frames').checked = cosmetic.hideAdFrames !== false;
+  if ($('ab-cos-collapse')) $('ab-cos-collapse').checked = cosmetic.collapseEmptySlots !== false;
+  if ($('ab-cos-antiadblock')) $('ab-cos-antiadblock').checked = cosmetic.neutralizeAntiAdblock !== false;
+
+  if ($('ab-scriptlets')) $('ab-scriptlets').checked = adblockConfig.scriptlets !== false;
+
+  if ($('ab-selectors') && document.activeElement !== $('ab-selectors')) {
+    $('ab-selectors').value = (adblockConfig.customSelectors || []).join('\n');
+  }
+  if ($('ab-custom-rules') && document.activeElement !== $('ab-custom-rules')) {
+    $('ab-custom-rules').value = (adblockConfig.customRules || []).join('\n');
+  }
+
+  renderGlobalToggles();
+  renderDomainList('ab-whitelist-list', adblockConfig.whitelist, 'whitelist');
+  renderDomainList('ab-blacklist-list', adblockConfig.blacklist, 'blacklist');
+  renderAdblockStats();
+}
+
+async function addDomainToList(listName, input) {
+  const value = input?.value?.trim();
+  if (!value) return setStatus('دامنه را وارد کنید', true);
+  const res = await send({ type: 'ADBLOCK_SET_LIST', list: listName, domain: value, present: true });
+  if (res?.ok) {
+    adblockConfig = res.config;
+    input.value = '';
+    renderAdblockTab();
+    setStatus(listName === 'whitelist' ? '✓ به لیست سفید اضافه شد' : '✓ به لیست سیاه اضافه شد');
+  } else {
+    setStatus('دامنه نامعتبر است', true);
+  }
+}
+
+function bindAdblockTab() {
+  if (!$('ab-global-enabled')) return;
+
+  $('ab-global-enabled').onchange = () => {
+    patchAdblock({ enabled: $('ab-global-enabled').checked }, '✓ ذخیره شد');
+  };
+
+  $('ab-global-mode').onchange = () => {
+    const mode = $('ab-global-mode').value;
+    const patch = { mode };
+    if (mode !== 'custom') patch.toggles = { ...(MODE_PRESETS[mode] || MODE_PRESETS.default) };
+    patchAdblock(patch, '✓ حالت مسدودسازی ذخیره شد');
+  };
+
+  $('ab-show-badge').onchange = () => {
+    patchAdblock({ showBadge: $('ab-show-badge').checked });
+  };
+
+  $('ab-scriptlets').onchange = () => {
+    patchAdblock({ scriptlets: $('ab-scriptlets').checked }, '✓ ذخیره شد');
+  };
+
+  $('ab-save-guard').onclick = () => {
+    patchAdblock({
+      popupGuard: {
+        ...(adblockConfig.popupGuard || {}),
+        enabled: $('ab-guard-enabled').checked,
+        blockWithoutGesture: $('ab-guard-nogesture').checked,
+        blockThirdPartyPopup: $('ab-guard-thirdparty').checked,
+        blockFromMedia: $('ab-guard-media').checked,
+        allowedHosts: parseLines($('ab-guard-allowed').value)
+      }
+    }, '✓ تنظیمات محافظ پاپ‌آپ ذخیره شد');
+  };
+
+  $('ab-save-cosmetic').onclick = () => {
+    patchAdblock({
+      cosmetic: {
+        ...(adblockConfig.cosmetic || {}),
+        hideAdFrames: $('ab-cos-frames').checked,
+        collapseEmptySlots: $('ab-cos-collapse').checked,
+        neutralizeAntiAdblock: $('ab-cos-antiadblock').checked
+      },
+      customSelectors: parseLines($('ab-selectors').value)
+    }, '✓ تنظیمات پاک‌سازی بصری ذخیره شد');
+  };
+
+  $('ab-save-rules').onclick = () => {
+    patchAdblock({ customRules: parseLines($('ab-custom-rules').value) }, '✓ فیلترهای سفارشی ذخیره شد');
+  };
+
+  $('ab-whitelist-add').onclick = () => addDomainToList('whitelist', $('ab-whitelist-input'));
+  $('ab-blacklist-add').onclick = () => addDomainToList('blacklist', $('ab-blacklist-input'));
+  $('ab-whitelist-input').onkeydown = (e) => { if (e.key === 'Enter') $('ab-whitelist-add').click(); };
+  $('ab-blacklist-input').onkeydown = (e) => { if (e.key === 'Enter') $('ab-blacklist-add').click(); };
+
+  $('ab-refresh-stats').onclick = async () => {
+    await loadAdblock();
+    renderAdblockTab();
+    setStatus('✓ آمار بروزرسانی شد');
+  };
+
+  $('ab-reset-stats').onclick = async () => {
+    const res = await send({ type: 'ADBLOCK_RESET_STATS' });
+    if (res?.ok) {
+      adblockStats = res.stats;
+      renderAdblockTab();
+      setStatus('✓ آمار صفر شد');
+    }
+  };
+}
+
 /* Chat Prompt Submission */
 async function submit(prompt) {
   const clean = prompt?.trim();
@@ -369,7 +656,28 @@ async function submit(prompt) {
   history.push({ role: 'user', text: clean });
   renderHistory();
   $('prompt').value = '';
-  setStatus('در حال پردازش با هوش مصنوعی...');
+
+  // Live "thinking / typing" bubble while the model responds
+  const chat = $('chat');
+  const pending = document.createElement('div');
+  pending.className = 'message assistant';
+  const pendingBody = document.createElement('div');
+  pendingBody.className = 'typing';
+  pendingBody.innerHTML =
+    '<span class="typing-dots"><i></i><i></i><i></i></span>' +
+    '<span class="typing-text">در حال فکر کردن...</span>';
+  pending.append(pendingBody);
+  chat.append(pending);
+  chat.scrollTop = chat.scrollHeight;
+
+  // cycle the status label so it feels alive
+  const steps = ['در حال فکر کردن...', 'در حال خواندن صفحه...', 'در حال نوشتن پاسخ...'];
+  let step = 0;
+  const statusTimer = setInterval(() => {
+    const t = pendingBody.querySelector('.typing-text');
+    if (t) t.textContent = steps[step % steps.length];
+    step++;
+  }, 2200);
 
   const provider = providers.find((p) => p.id === activeProviderId) || providers[0];
   const result = await send({
@@ -379,6 +687,9 @@ async function submit(prompt) {
     prompt: clean,
     pageText
   });
+
+  clearInterval(statusTimer);
+  pending.remove();
 
   history.push({
     role: 'assistant',
@@ -419,36 +730,40 @@ async function refreshContext() {
     $('context-status').textContent = `${pageText.length.toLocaleString('fa-IR')} کاراکتر از صفحه بارگذاری شد`;
     renderActiveProviderLine();
     renderHistory();
+    await loadAdblock();
+    renderAdblockTab();
   } else {
     $('context-status').textContent = 'یک تب وب استاندارد را باز کنید';
   }
 }
 
+let openSettingsModal = null;
+
 function bindModal() {
   const modal = $('settings-modal');
-  $('open-settings').onclick = () => {
+
+  function activateTab(tabId) {
+    document.querySelectorAll('.tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === tabId));
+    document.querySelectorAll('.tab-content').forEach((c) => c.classList.toggle('active', c.id === `tab-${tabId}`));
+  }
+
+  openSettingsModal = async (tabId) => {
     modal.classList.remove('hidden');
     renderProvidersList();
     renderTranslationTab();
     renderTools();
+    await loadAdblock();
+    renderAdblockTab();
+    if (tabId) activateTab(tabId);
   };
-  $('open-settings-inline').onclick = () => {
-    modal.classList.remove('hidden');
-    renderProvidersList();
-    renderTranslationTab();
-    renderTools();
-  };
+
+  $('open-settings').onclick = () => openSettingsModal();
+  $('open-settings-inline').onclick = () => openSettingsModal();
   $('close-settings').onclick = () => modal.classList.add('hidden');
 
   // Tab switching
   document.querySelectorAll('.tab-btn').forEach((btn) => {
-    btn.onclick = () => {
-      document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach((c) => c.classList.remove('active'));
-      btn.classList.add('active');
-      const tabId = `tab-${btn.dataset.tab}`;
-      $(tabId)?.classList.add('active');
-    };
+    btn.onclick = () => activateTab(btn.dataset.tab);
   });
 
   // Provider Type change -> toggle base URL input
@@ -557,10 +872,33 @@ function bindModal() {
     }
     e.target.value = '';
   };
+
+  // Clear All Stored Data
+  const clearBtn = $('clear-all-data-btn');
+  if (clearBtn) {
+    clearBtn.onclick = async () => {
+      const ok = confirm('هشدار: آیا مطمئن هستید؟ تمامی داده‌های ذخیره‌شده توسط مرورگر (تنظیمات سایت‌ها، فونت‌های آپلودشده، اتصالات هوش مصنوعی، تاریخچه گفتگوها و آمار) به طور کامل پاک خواهند شد.');
+      if (!ok) return;
+      try {
+        await chrome.storage.local.clear();
+        await chrome.storage.local.set(DEFAULTS);
+        setStatus('✓ تمام داده‌های مرورگر پاک شدند و افزونه به حالت پیش‌فرض بازگشت.');
+        await refreshContext();
+        renderProvidersList();
+        renderTranslationTab();
+        renderTools();
+        await renderAdblockTab();
+      } catch (err) {
+        console.error('[EasyWeb Clear Error]:', err);
+        setStatus('خطا در پاک‌سازی داده‌ها: ' + (err.message || ''), true);
+      }
+    };
+  }
 }
 
 function bind() {
   bindModal();
+  bindAdblockTab();
 
   $('composer').onsubmit = (e) => {
     e.preventDefault();
@@ -584,3 +922,28 @@ function bind() {
 
 bind();
 refreshContext();
+
+/**
+ * The popup's "advanced settings" link deep-links straight to the blocker tab.
+ * Handled both on load (panel was closed) and through a storage change (panel
+ * was already open, so the script would not run again).
+ */
+async function openRequestedTab(tabId) {
+  if (!tabId || !openSettingsModal) return;
+  try {
+    await chrome.storage.local.remove('sidebarTab');
+  } catch (_) {}
+  await openSettingsModal(tabId);
+}
+
+(async () => {
+  try {
+    const store = await chrome.storage.local.get({ sidebarTab: '' });
+    await openRequestedTab(store.sidebarTab);
+  } catch (_) {}
+})();
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'local') return;
+  if (changes.sidebarTab?.newValue) openRequestedTab(changes.sidebarTab.newValue);
+});

@@ -1,6 +1,8 @@
 /**
  * Shared Default Configurations and Font Definitions
  */
+import { DEFAULT_BLOCKER, DEFAULT_ADBLOCK } from './adblock.js';
+
 export const DEFAULT_SITE = {
   enabled: false,
   direction: {
@@ -32,6 +34,7 @@ export const DEFAULT_SITE = {
     tone: 'standard',
     customPrompt: ''
   },
+  blocker: { ...DEFAULT_BLOCKER },
   targets: []
 };
 
@@ -79,5 +82,7 @@ export const DEFAULTS = {
   providers: [],
   customTools: [],
   chatHistory: {},
-  detect: { threshold: 0.2, extraFonts: [] }
+  detect: { threshold: 0.2, extraFonts: [] },
+  adblock: DEFAULT_ADBLOCK,
+  adblockStats: { total: 0, perDomain: {}, popups: 0, cosmetic: 0, since: 0 }
 };

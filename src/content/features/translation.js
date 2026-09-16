@@ -100,7 +100,7 @@ export async function translateRoot(root, targetLang = 'fa', engine = 'google', 
       });
     }
   } catch (error) {
-    console.error('[EasyWeb Translate Root Error]:', error);
+    console.warn('[EasyWeb Translate Root Error]:', error);
   } finally {
     isTranslating = false;
   }

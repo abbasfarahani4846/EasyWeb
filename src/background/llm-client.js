@@ -71,7 +71,7 @@ export async function fetchProviderModels(providerType, apiKey, customBaseUrl = 
 
     return { ok: true, models: models.length ? models : config.defaultModels };
   } catch (error) {
-    console.error(`[Fetch Models Error ${providerType}]:`, error);
+    console.warn(`[Fetch Models Error ${providerType}]:`, error.message);
     return { ok: false, error: error.message, models: config.defaultModels };
   }
 }
@@ -79,6 +79,8 @@ export async function fetchProviderModels(providerType, apiKey, customBaseUrl = 
 export async function callLLM({ providerType, apiKey, baseUrl, model, prompt, systemPrompt = '' }) {
   const config = AI_PROVIDERS_CONFIG[providerType] || AI_PROVIDERS_CONFIG.custom;
   const endpointBase = (baseUrl || config.baseUrl).replace(/\/+$/, '');
+  // ponytail: 35s timeout ceiling for chat completion requests
+  const timeoutSignal = AbortSignal.timeout(35000);
 
   try {
     if (providerType === 'gemini') {
@@ -94,10 +96,12 @@ export async function callLLM({ providerType, apiKey, baseUrl, model, prompt, sy
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
+        signal: timeoutSignal
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
+        if (res.status === 524) throw new Error('Chat API timeout 524: server took too long to respond');
         throw new Error(err.error?.message || `Gemini API error ${res.status}`);
       }
       const data = await res.json();
@@ -122,10 +126,12 @@ export async function callLLM({ providerType, apiKey, baseUrl, model, prompt, sy
           'x-api-key': apiKey.trim(),
           'anthropic-version': '2023-06-01'
         },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
+        signal: timeoutSignal
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
+        if (res.status === 524) throw new Error('Chat API timeout 524: server took too long to respond');
         throw new Error(err.error?.message || `Anthropic error ${res.status}`);
       }
       const data = await res.json();
@@ -154,17 +160,21 @@ export async function callLLM({ providerType, apiKey, baseUrl, model, prompt, sy
         model: modelId,
         messages,
         temperature: 0.3
-      })
+      }),
+      signal: timeoutSignal
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
+      if (res.status === 524) throw new Error('Chat API timeout 524: server took too long to respond');
       throw new Error(err.error?.message || `Chat API error ${res.status}`);
     }
     const data = await res.json();
     const text = data.choices?.[0]?.message?.content || '';
     return { ok: true, text };
   } catch (error) {
-    console.error(`[LLM Completion Error (${providerType})]:`, error);
-    return { ok: false, error: error.message };
+    const isTimeout = error.name === 'TimeoutError' || error.name === 'AbortError';
+    const msg = isTimeout ? 'Chat API request timed out (35s)' : error.message;
+    console.warn(`[LLM Completion Error (${providerType})]:`, msg);
+    return { ok: false, error: msg };
   }
 }
